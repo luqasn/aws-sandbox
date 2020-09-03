@@ -1,0 +1,1 @@
+/mitmproxy IN_CREATE,IN_MOVED_TO,IN_MODIFY,IN_ATTRIB /update.sh $@/$#

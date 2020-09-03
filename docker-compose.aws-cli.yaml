@@ -1,0 +1,16 @@
+version: '3'
+services:
+  aws-cli:
+    build: aws-cli
+    environment:
+      HTTP_PROXY: "http://proxy:8888"
+      HTTPS_PROXY: "http://proxy:8888"
+      AWS_ACCESS_KEY_ID: FAKE
+      AWS_SECRET_ACCESS_KEY: FAKE
+      AWS_DEFAULT_REGION: eu-west-1
+    networks:
+      - internal
+    dns:
+      - 10.5.0.100
+    volumes:
+      - "certificates:/etc/ssl/certs/:ro"

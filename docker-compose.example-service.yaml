@@ -1,0 +1,24 @@
+version: '3'
+services:
+  example-service:
+    image: minio/minio
+    # required if you want to connect to AWS services via SSL
+    environment:
+      HTTP_PROXY: "http://proxy:8888"
+      HTTPS_PROXY: "http://proxy:8888"
+      MINIO_ACCESS_KEY: FAKEFAKEFAKE
+      MINIO_SECRET_KEY: FAKEFAKEFAKE
+    command:
+      - gateway
+      - s3
+    networks:
+      - internal
+    dns:
+      - 10.5.0.100
+    # required if you want to connect to AWS services via SSL
+    volumes:
+      - "certificates:/etc/ssl/certs/:ro"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.example-service.rule=Host(`example-service.test`)"
+      - "traefik.http.services.example-service.loadbalancer.server.port=9000"
