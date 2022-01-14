@@ -1,7 +1,7 @@
 version: '3'
 services:
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:0.12.9
     ports:
       - "${PORT_WEB_UI-8081}:8081"
     environment:
@@ -41,9 +41,9 @@ services:
       - "8888"
       - "--web-port"
       - "8082"
-      - "--no-http2" # required for overriding host header in s3-url-hack.py
-      - "-s"
-      - "/s3-url-hack.py" # workaround for https://github.com/localstack/localstack/issues/2631
+#      - "--no-http2" # required for overriding host header in s3-url-hack.py
+#      - "-s"
+#      - "/s3-url-hack.py" # workaround for https://github.com/localstack/localstack/issues/2631
     dns:
       - 10.5.0.100
     ports:
@@ -51,7 +51,7 @@ services:
       - "8082:8082"
     volumes:
       - "mitmproxy:/home/mitmproxy/.mitmproxy/"
-      - "./s3-url-hack.py:/s3-url-hack.py"
+#      - "./s3-url-hack.py:/s3-url-hack.py"
     networks:
       default: {}
       internal:
@@ -93,7 +93,7 @@ services:
     build: cert-helper
     volumes:
       - "mitmproxy:/mitmproxy:ro"
-      - "certificates:/etc/ssl/certs"
+      - "./certificates:/etc/ssl/certs"
 
 networks:
   internal:
@@ -104,4 +104,4 @@ networks:
 
 volumes:
   mitmproxy:
-  certificates:
+#  certificates:
