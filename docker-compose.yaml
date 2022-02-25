@@ -2,18 +2,14 @@ version: '3'
 services:
   localstack:
     image: localstack/localstack:0.14.0
-    ports:
-      - "${PORT_WEB_UI-8081}:8081"
     environment:
       - EDGE_PORT=80
       - SERVICES=${SERVICES- }
       - DEBUG=${DEBUG- }
-      - DATA_DIR=${DATA_DIR- }
-      - PORT_WEB_UI=${PORT_WEB_UI-8081}
+      - DATA_DIR=/tmp/localstack
       - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR- }
       - KINESIS_ERROR_PROBABILITY=${KINESIS_ERROR_PROBABILITY- }
       - DOCKER_HOST=unix:///var/run/docker.sock
-      - HOST_TMP_FOLDER=${TMPDIR}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.localstack.rule=HostRegexp(`{subdomain:.+}.amazonaws.com`)"
@@ -23,7 +19,7 @@ services:
       - "traefik.http.services.localstack.loadbalancer.server.port=80"
       
     volumes:
-      - "/private/tmp/localstack:/tmp/localstack"
+      - "${LOCALSTACK_DATA_DIR-/private/tmp/localstack}:/tmp/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       default: {}
