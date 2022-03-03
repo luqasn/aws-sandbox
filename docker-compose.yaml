@@ -68,9 +68,7 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       default: {}
-      internal:
-        aliases:
-          - sqs.eu-west-1.amazonaws.com
+      internal: {}
 
   dns:
     image: coredns/coredns:1.7.0
