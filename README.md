@@ -6,7 +6,6 @@ This project combines 5 components:
 - LocalStack for providing a (mostly) working mock of AWS services
 - Traefik in front of LocalStack and possibly your own services to allow them all to offer their services on localhost:80 to the host (not strictly necessary)
 - mitmproxy as an external entrypoint into the sandbox (so that you can point things at the AWS running inside the sandbox without needing to mess with the host's DNS settings)
-  - additionally, this contains a workaround for missing "subdomain-style" s3 access in LocalStack (see [](s3-url-hack.py))
 - CoreDNS for wildcard DNS resolution for both AWS services and your own ones (ending on .test)
 - cert-helper takes the auto-generated proxy CA cert and packages it in Debian CA format so you can inject it into containers
 
