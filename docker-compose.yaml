@@ -75,6 +75,7 @@ services:
     networks:
       internal:
         ipv4_address: 10.5.0.100
+      default: {}
 
   dns-external:
     image: coredns/coredns:1.7.0
