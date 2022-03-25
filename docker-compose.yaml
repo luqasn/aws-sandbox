@@ -8,7 +8,7 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - SKIP_SSL_CERT_DOWNLOAD=1
     labels:
-      - "virtual.host=*.eu-west-1.amazonaws.com *.dualstack.eu-west-1.amazonaws.com *.s3.eu-west-1.amazonaws.com *.s3.dualstack.eu-west-1.amazonaws.com *.amazonaws.com *.s3.amazonaws.test *.amazonaws.test"
+      - "virtual.host=*.eu-west-1.amazonaws.com *.dualstack.eu-west-1.amazonaws.com *.s3.eu-west-1.amazonaws.com *.s3.dualstack.eu-west-1.amazonaws.com *.amazonaws.com *.s3.amazonaws.test *.amazonaws.test amazonaws.test"
       - "virtual.tls=internal"
     volumes:
       - "${LOCALSTACK_DATA_DIR-/private/tmp/localstack}:/tmp/localstack"
