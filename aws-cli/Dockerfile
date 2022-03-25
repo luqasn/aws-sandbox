@@ -1,5 +1,6 @@
-FROM debian:stable
+FROM debian:11.2-slim
+ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -yy awscli groff
+RUN apt update && apt install -y curl awscli groff jq
 
 ENTRYPOINT ["aws"]

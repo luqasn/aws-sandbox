@@ -1,0 +1,138 @@
+{{- /*
+    Based heavily on a combination of
+    https://github.com/Siemko/caddy2-gen/blob/master/docker-gen/templates/Caddyfile.tmpl
+    and https://github.com/nginx-proxy/nginx-proxy/blob/main/nginx.tmpl
+*/ -}}
+{{ define "upstream" }}
+	{{ $networks := .Networks }}
+	{{ $debug_all := .Debug }}
+	{{ $server_found := "false" }}
+	{{ range $container := .Containers }}
+        {{ $debug := (eq (coalesce $container.Env.DEBUG $debug_all "false") "true") }}
+        {{/* If only 1 port exposed, use that as a default, else 80 */}}
+        {{ $defaultPort := (when (eq (len $container.Addresses) 1) (first $container.Addresses) (dict "Port" "80")).Port }}
+        {{ $port := (or (index $container.Labels "virtual.port") $defaultPort) }}
+        {{ $address := where $container.Addresses "Port" $port | first }}
+        {{ if $debug }}
+    # Exposed ports: {{ $container.Addresses }}
+    # Default virtual port: {{ $defaultPort }}
+    # VIRTUAL_PORT: {{ (index $container.Labels "virtual.port") }}
+            {{ if not $address }}
+    # /!\ Virtual port not exposed
+            {{ end }}
+        {{ end }}
+		{{ range $knownNetwork := $networks }}
+			{{ range $containerNetwork := $container.Networks }}
+				{{ if (and (ne $containerNetwork.Name "ingress") (or (eq $knownNetwork.Name $containerNetwork.Name) (eq $knownNetwork.Name "host"))) }}
+    ## Can be connected with "{{ $containerNetwork.Name }}" network
+                    {{ if $address }}
+                        {{/* If we got the containers from swarm and this container's port is published to host, use host IP:PORT */}}
+                        {{ if and $container.Node.ID $address.HostPort }}
+                            {{ $server_found = "true" }}
+    # {{ $container.Node.Name }}/{{ $container.Name }}
+    to {{ $container.Node.Address.IP }}:{{ $address.HostPort }}
+                        {{/* If there is no swarm node or the port is not published on host, use container's IP:PORT */}}
+                        {{ else if $containerNetwork }}
+                            {{ $server_found = "true" }}
+    # {{ $container.Name }}
+    to {{ $containerNetwork.IP }}:{{ $address.Port }}
+                        {{ end }}
+                    {{ else if $containerNetwork }}
+    # {{ $container.Name }}
+                        {{ if $containerNetwork.IP }}
+                            {{ $server_found = "true" }}
+    to {{ $containerNetwork.IP }}:{{ $port }}
+                        {{ else }}
+    # /!\ No IP for this network!
+                    	{{ end }}
+					{{ end }}
+				{{ else }}
+    # Cannot connect to network '{{ $containerNetwork.Name }}' of this container
+				{{ end }}
+			{{ end }}
+		{{ end }}
+	{{ end }}
+	{{/* nginx-proxy/nginx-proxy#1105 */}}
+	{{ if (eq $server_found "false") }}
+    # No suitable upstream matched :(
+	{{ end }}
+{{ end }}
+
+{{ $hosts := groupByLabel $ "virtual.host" }}
+
+{
+  skip_install_trust
+}
+
+{{ if not $hosts }}
+
+127.0.0.1:2015 {
+  log {
+      output stdout
+  }
+}
+
+
+{{ else }}
+
+{{ $targetContainer := whereLabelExists $ "docker-gen.target" | first }}
+{{ $dockerGenContainer := where $ "ID" .Docker.CurrentContainerID | first }}
+
+{{ $debug_all := $.Env.DEBUG }}
+{{ range $h, $containers := $hosts }}
+{{ $c := first $containers }}
+{{ $allhosts := trim (index $c.Labels "virtual.host") }}
+{{ range $t, $host := split $allhosts " " }}
+{{ $tlsEmail := trim (index $c.Labels "virtual.tls-email") }}
+{{ $tlsConfig := trim (index $c.Labels "virtual.tls") }}
+{{ $tlsEnv := or $tlsEmail $tlsConfig }}
+{{ $tlsOff := eq $tlsEnv "" }}
+{{ $tlsOn := ne $tlsEnv "" }}
+{{ $alias := trim (index $c.Labels "virtual.alias") }}
+{{ $aliasPresent := ne $alias "" }}
+{{ $authUsername := trim (index $c.Labels "virtual.auth.username") }}
+{{ $authPassword := trim (index $c.Labels "virtual.auth.password") }}
+{{ $authPath := trim (index $c.Labels "virtual.auth.path") }}
+{{ $basicauth := and (ne $authUsername "") (ne $authPassword "") }}
+{{ $hostDirectives := trim (index $c.Labels "virtual.host.directives") }}
+{{ $hostImport := trim (index $c.Labels "virtual.host.import") }}
+{{ $proxyMatcher := trim (index $c.Labels "virtual.proxy.matcher") }}
+{{ $proxyDirectives := trim (index $c.Labels "virtual.proxy.directives") }}
+{{ $proxyLBPolicy := or (trim (index $c.Labels "virtual.proxy.lb_policy")) "round_robin" }}
+{{ $proxyImport := trim (index $c.Labels "virtual.proxy.import") }}
+
+{{ if $aliasPresent  }}
+{{ if $tlsOff }}http://{{ end }}{{ $alias }} {
+  redir {{ if $tlsOff }}http://{{ else }}https://{{ end }}{{ $host }}
+}
+{{ end }}
+
+{{ if $tlsOff }}http://{{ end }}{{ $host }} {
+  {{ if $tlsOn }}tls {{ $tlsEnv }}{{ end }}
+
+  {{ $hostDirectives }}
+  {{ if $hostImport }}import {{ $hostImport }}{{ end }}
+
+  {{ if $basicauth }}
+  basicauth {{ $authPath }} {
+      {{ $authUsername }} {{ $authPassword }}
+  }
+  {{ end }}
+
+  reverse_proxy {{ $proxyMatcher }} {
+    lb_policy {{ $proxyLBPolicy }}
+    {{ $proxyDirectives }}
+    {{ if $proxyImport }}import {{ $proxyImport }}{{ end }}
+
+    {{ template "upstream" (dict "Containers" $containers "Networks" (or $targetContainer $dockerGenContainer).Networks "Debug" $debug_all) }}
+  }
+
+  encode gzip zstd
+  log {
+    output stdout
+  }
+}
+{{ end }}
+{{ end }}
+
+{{ end }}

@@ -4,25 +4,16 @@ services:
     image: localstack/localstack:0.14.0
     environment:
       - EDGE_PORT=80
-      - SERVICES=${SERVICES- }
-      - DEBUG=${DEBUG- }
       - DATA_DIR=/tmp/localstack
-      - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR- }
-      - KINESIS_ERROR_PROBABILITY=${KINESIS_ERROR_PROBABILITY- }
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - SKIP_SSL_CERT_DOWNLOAD=1
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.localstack.rule=HostRegexp(`{subdomain:.+}.amazonaws.com`)"
-      - "traefik.http.routers.localstack_tls.rule=HostRegexp(`{subdomain:.+}.amazonaws.com`)"
-      - "traefik.http.routers.localstack_tls.tls=true"
-      - "traefik.docker.network=internal"
-      - "traefik.http.services.localstack.loadbalancer.server.port=80"
-      
+      - "virtual.host=*.eu-west-1.amazonaws.com *.dualstack.eu-west-1.amazonaws.com *.s3.eu-west-1.amazonaws.com *.s3.dualstack.eu-west-1.amazonaws.com *.amazonaws.com *.s3.amazonaws.test *.amazonaws.test"
+      - "virtual.tls=internal"
     volumes:
       - "${LOCALSTACK_DATA_DIR-/private/tmp/localstack}:/tmp/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
-      default: {}
       internal: {}
 
   proxy:
@@ -50,40 +41,54 @@ services:
         ipv4_address: 10.5.0.101
 
   api-gateway:
-    image: "traefik:v2.2"
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.webtls.address=:443"
+    image: caddy:2.4.6
+    command: caddy run --watch --config /etc/caddy/Caddyfile
     dns:
       - 10.5.0.100
-    labels:
-      - traefik.docker.network=internal
     ports:
       - "80:80"
-      - "8080:8080"
+      - "443:443"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - caddy-conf:/etc/caddy:ro
+      - caddy-data:/data/caddy
+    labels:
+      - "docker-gen.target"
     networks:
       default: {}
       internal: {}
 
-  dns:
+  dockergen:
+    image: nginxproxy/docker-gen:0.8.4
+    command: -watch /etc/docker-gen/templates/caddy.tmpl /etc/caddy/Caddyfile
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./caddy/Caddyfile.tmpl:/etc/docker-gen/templates/caddy.tmpl
+      - caddy-conf:/etc/caddy
+
+  dns-internal:
     image: coredns/coredns:1.7.0
     volumes:
-      - ./Corefile:/Corefile
+      - ./dns/Corefile.internal:/Corefile
     networks:
-      default: {}
       internal:
         ipv4_address: 10.5.0.100
+
+  dns-external:
+    image: coredns/coredns:1.7.0
+    volumes:
+      - ./dns/Corefile.external:/Corefile
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    networks:
+      - default
 
   cert-helper:
     build: cert-helper
     volumes:
       - "mitmproxy:/mitmproxy:ro"
-      - "certificates:/etc/ssl/certs"
+      - "caddy-data:/caddy:ro"
+      - "certificates:/tmp/certs"
 
 networks:
   internal:
@@ -95,3 +100,5 @@ networks:
 volumes:
   mitmproxy:
   certificates:
+  caddy-conf:
+  caddy-data:
