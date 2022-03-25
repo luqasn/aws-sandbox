@@ -24,7 +24,7 @@ docker-compose -f docker-compose.yaml -f docker-compose.aws-cli.yaml run --rm aw
 
 Execute command against dockered environment (from the host). This example assumes you want to configure your fake AWS env with Terraform:
 ```
-HTTP_PROXY=http://proxy:8888 HTTPS_PROXY=http://proxy:8888 terraform plan
+HTTP_PROXY=http://localhost:8888 HTTPS_PROXY=http://localhost:8888 terraform plan
 ```
 
 Run example service accessing AWS sandbox:
