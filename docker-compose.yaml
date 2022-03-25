@@ -93,10 +93,6 @@ services:
       - "mitmproxy:/mitmproxy:ro"
       - "caddy-data:/caddy:ro"
       - "certificates:/tmp/certs"
-    healthcheck:
-      test: [ "CMD", "ls", "-al", "/tmp/certs/caddy.pem" ]
-      interval: 3s
-      retries: 5
 
 networks:
   internal:
