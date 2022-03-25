@@ -13,6 +13,9 @@ services:
     volumes:
       - "${LOCALSTACK_DATA_DIR-/private/tmp/localstack}:/tmp/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "awslocal", "s3", "ls"]
+      interval: 5s
     networks:
       internal: {}
 
@@ -89,6 +92,10 @@ services:
       - "mitmproxy:/mitmproxy:ro"
       - "caddy-data:/caddy:ro"
       - "certificates:/tmp/certs"
+    healthcheck:
+      test: [ "CMD", "ls", "-al", "/tmp/certs/caddy.pem" ]
+      interval: 3s
+      retries: 5
 
 networks:
   internal:
