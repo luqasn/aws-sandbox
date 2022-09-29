@@ -8,7 +8,7 @@ cp "/caddy/pki/authorities/local/root.crt" /usr/local/share/ca-certificates/cadd
 
 update-ca-certificates -f
 
-rm -f /tmp/certs/*
+rm -rf /tmp/certs/*
 cp -L /etc/ssl/certs/* /tmp/certs/
 
 ln -sf /tmp/certs/ca-certificates.crt /tmp/certs/ca-bundle.crt
