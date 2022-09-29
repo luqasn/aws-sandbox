@@ -1,9 +1,0 @@
-. {
-    template IN A amazonaws.com {
-        answer "{{ .Name }} 60 IN CNAME api-gateway"
-    }
-    template IN A test {
-        answer "{{ .Name }} 60 IN CNAME api-gateway"
-    }
-    forward . 127.0.0.11
-}

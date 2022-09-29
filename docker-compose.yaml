@@ -1,14 +1,17 @@
-version: '3'
+version: '3.9'
 services:
   localstack:
     image: localstack/localstack:0.14.0
     environment:
-      - EDGE_PORT=80
+      - EDGE_PORT=8080
       - DATA_DIR=/tmp/localstack
       - DOCKER_HOST=unix:///var/run/docker.sock
       - SKIP_SSL_CERT_DOWNLOAD=1
+    ports:
+      - "8080"
     labels:
-      - "virtual.host=*.eu-west-1.amazonaws.com *.dualstack.eu-west-1.amazonaws.com *.s3.eu-west-1.amazonaws.com *.s3.dualstack.eu-west-1.amazonaws.com *.amazonaws.com *.s3.amazonaws.test *.amazonaws.test amazonaws.test"
+      - "virtual.host=*.eu-west-1.amazonaws.com *.queue.amazonaws.com *.dualstack.eu-west-1.amazonaws.com *.s3.eu-west-1.amazonaws.com *.s3.dualstack.eu-west-1.amazonaws.com *.amazonaws.com *.s3.amazonaws.test *.amazonaws.test amazonaws.test"
+      - "virtual.port=8080"
       - "virtual.tls=internal"
     volumes:
       - "${LOCALSTACK_DATA_DIR-/private/tmp/localstack}:/tmp/localstack"
@@ -18,6 +21,29 @@ services:
       interval: 5s
     networks:
       internal: {}
+      default: {}
+
+  proxy-external:
+    image: alpine/socat
+    command:
+      - tcp-listen:8888,fork,reuseaddr
+      - tcp-connect:proxy:8888
+    ports:
+      - "8888:8888"
+    networks:
+      - internal
+      - default
+
+  proxy-external-ui:
+    image: alpine/socat
+    command:
+      - tcp-listen:8082,fork,reuseaddr
+      - tcp-connect:proxy:8082
+    ports:
+      - "8082:8082"
+    networks:
+      - internal
+      - default
 
   proxy:
     image: mitmproxy/mitmproxy:7.0.4
@@ -33,13 +59,9 @@ services:
       - "8082"
     dns:
       - 10.5.0.100
-    ports:
-      - "8888:8888"
-      - "8082:8082"
     volumes:
       - "mitmproxy:/home/mitmproxy/.mitmproxy/"
     networks:
-      default: {}
       internal:
         ipv4_address: 10.5.0.101
 
@@ -58,20 +80,66 @@ services:
       - "docker-gen.target"
     networks:
       default: {}
-      internal: {}
+      internal:
+        ipv4_address: 10.5.0.102
 
   dockergen:
-    image: nginxproxy/docker-gen:0.8.4
+    image: nginxproxy/docker-gen:0.9.0
     command: -watch /etc/docker-gen/templates/caddy.tmpl /etc/caddy/Caddyfile
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./caddy/Caddyfile.tmpl:/etc/docker-gen/templates/caddy.tmpl
+      - ${AWS_SANDBOX_DIR-.}/caddy/Caddyfile.tmpl:/etc/docker-gen/templates/caddy.tmpl
       - caddy-conf:/etc/caddy
+    labels:
+      - "virtual.allow_http"
+    networks:
+      - internal
 
-  dns-internal:
-    image: coredns/coredns:1.7.0
+  db:
+    image: postgres:10.18-alpine
+    command:
+      - -c
+      - max_connections=500
+    environment:
+      POSTGRES_DB: "dummydbthatisneverused"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "secret"
+    ports:
+      - "5433:5432"
     volumes:
-      - ./dns/Corefile.internal:/Corefile
+      - db-data:/var/lib/postgresql/data/
+    networks:
+      internal: {}
+      default: {}
+
+  rds:
+    image: luqasn/postgres-magicdb:v0.0.5
+    environment:
+      TARGET_USER: postgres
+      TARGET_PASSWORD: secret
+      TARGET_HOST: db:5432
+      TARGET_DUMMY_DB: dummydbthatisneverused
+    ports:
+      - "5432:5432"
+    networks:
+      internal:
+        ipv4_address: 10.5.0.103
+      default: {}
+
+  dns:
+    container_name: aws-sandbox-dns
+    image: coredns/coredns:1.7.0
+    restart: on-failure
+    volumes:
+      - coredns-conf:/config/
+    command:
+      - -conf
+      - /config/Corefile
+    ports:
+      - "127.0.0.1:5300:53/udp"
+    depends_on:
+      dockergen-dns:
+        condition: service_started
     networks:
       internal:
         ipv4_address: 10.5.0.100
@@ -80,15 +148,24 @@ services:
   dns-external:
     image: coredns/coredns:1.7.0
     volumes:
-      - ./dns/Corefile.external:/Corefile
+      - ${AWS_SANDBOX_DIR-.}/dns/Corefile.external:/Corefile
     ports:
-      - "127.0.0.1:53:53/tcp"
       - "127.0.0.1:53:53/udp"
     networks:
-      - default
+      default: { }
+
+  dockergen-dns:
+    image: nginxproxy/docker-gen:0.9.0
+    command: -notify-sighup aws-sandbox-dns -watch /etc/docker-gen/templates/Corefile.tmpl /config/Corefile
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ${AWS_SANDBOX_DIR-.}/dns/Corefile.tmpl:/etc/docker-gen/templates/Corefile.tmpl
+      - coredns-conf:/config/
+    networks:
+      - internal
 
   cert-helper:
-    build: cert-helper
+    build: ${AWS_SANDBOX_DIR-.}/cert-helper
     volumes:
       - "mitmproxy:/mitmproxy:ro"
       - "caddy-data:/caddy:ro"
@@ -106,3 +183,5 @@ volumes:
   certificates:
   caddy-conf:
   caddy-data:
+  db-data:
+  coredns-conf:

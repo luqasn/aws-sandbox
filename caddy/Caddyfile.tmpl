@@ -62,18 +62,8 @@
 
 {
   skip_install_trust
+  auto_https disable_redirects
 }
-
-{{ if not $hosts }}
-
-127.0.0.1:2015 {
-  log {
-      output stdout
-  }
-}
-
-
-{{ else }}
 
 {{ $targetContainer := whereLabelExists $ "docker-gen.target" | first }}
 {{ $dockerGenContainer := where $ "ID" .Docker.CurrentContainerID | first }}
@@ -81,15 +71,13 @@
 {{ $debug_all := $.Env.DEBUG }}
 {{ range $h, $containers := $hosts }}
 {{ $c := first $containers }}
-{{ $allhosts := trim (index $c.Labels "virtual.host") }}
-{{ range $t, $host := split $allhosts " " }}
+{{ $hosts := trim (index $c.Labels "virtual.host") }}
 {{ $tlsEmail := trim (index $c.Labels "virtual.tls-email") }}
 {{ $tlsConfig := trim (index $c.Labels "virtual.tls") }}
 {{ $tlsEnv := or $tlsEmail $tlsConfig }}
 {{ $tlsOff := eq $tlsEnv "" }}
 {{ $tlsOn := ne $tlsEnv "" }}
-{{ $alias := trim (index $c.Labels "virtual.alias") }}
-{{ $aliasPresent := ne $alias "" }}
+{{ $allowHttp := and $tlsOn (or (contains $dockerGenContainer.Labels "virtual.allow_http") (contains $c.Labels "virtual.allow_http")) }}
 {{ $authUsername := trim (index $c.Labels "virtual.auth.username") }}
 {{ $authPassword := trim (index $c.Labels "virtual.auth.password") }}
 {{ $authPath := trim (index $c.Labels "virtual.auth.path") }}
@@ -100,14 +88,17 @@
 {{ $proxyDirectives := trim (index $c.Labels "virtual.proxy.directives") }}
 {{ $proxyLBPolicy := or (trim (index $c.Labels "virtual.proxy.lb_policy")) "round_robin" }}
 {{ $proxyImport := trim (index $c.Labels "virtual.proxy.import") }}
+{{ $proxyTls := (contains $c.Labels "virtual.proxy.tls") }}
+{{ $proxyTlsInsecure := (contains $c.Labels "virtual.proxy.tls.insecure_skip_verify") }}
 
-{{ if $aliasPresent  }}
-{{ if $tlsOff }}http://{{ end }}{{ $alias }} {
-  redir {{ if $tlsOff }}http://{{ else }}https://{{ end }}{{ $host }}
-}
+{{ $allHosts := splitList " " $hosts }}
+{{ if $allowHttp }}
+{{ range $t, $host := splitList " " $hosts }}
+{{ $allHosts = append $allHosts (printf "%s%s" "http://" $host) }}
+{{ end }}
 {{ end }}
 
-{{ if $tlsOff }}http://{{ end }}{{ $host }} {
+{{ join ", " $allHosts }} {
   {{ if $tlsOn }}tls {{ $tlsEnv }}{{ end }}
 
   {{ $hostDirectives }}
@@ -125,6 +116,14 @@
     {{ if $proxyImport }}import {{ $proxyImport }}{{ end }}
 
     {{ template "upstream" (dict "Containers" $containers "Networks" (or $targetContainer $dockerGenContainer).Networks "Debug" $debug_all) }}
+    {{ if $proxyTls }}
+    transport http {
+        tls
+        {{ if $proxyTlsInsecure }}
+        tls_insecure_skip_verify
+        {{ end }}
+    }
+    {{ end }}
   }
 
   encode gzip zstd
@@ -132,7 +131,4 @@
     output stdout
   }
 }
-{{ end }}
-{{ end }}
-
 {{ end }}
