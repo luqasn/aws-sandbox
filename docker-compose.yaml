@@ -1,14 +1,17 @@
-version: '3'
+version: '3.9'
 services:
   localstack:
     image: localstack/localstack:0.14.0
     environment:
-      - EDGE_PORT=80
+      - EDGE_PORT=8080
       - DATA_DIR=/tmp/localstack
       - DOCKER_HOST=unix:///var/run/docker.sock
       - SKIP_SSL_CERT_DOWNLOAD=1
+    ports:
+      - "8080"
     labels:
-      - "virtual.host=*.eu-west-1.amazonaws.com *.dualstack.eu-west-1.amazonaws.com *.s3.eu-west-1.amazonaws.com *.s3.dualstack.eu-west-1.amazonaws.com *.amazonaws.com *.s3.amazonaws.test *.amazonaws.test amazonaws.test"
+      - "virtual.host=*.eu-west-1.amazonaws.com *.queue.amazonaws.com *.dualstack.eu-west-1.amazonaws.com *.s3.eu-west-1.amazonaws.com *.s3.dualstack.eu-west-1.amazonaws.com *.amazonaws.com *.s3.amazonaws.test *.amazonaws.test amazonaws.test"
+      - "virtual.port=8080"
       - "virtual.tls=internal"
     volumes:
       - "${LOCALSTACK_DATA_DIR-/private/tmp/localstack}:/tmp/localstack"
@@ -77,7 +80,8 @@ services:
       - "docker-gen.target"
     networks:
       default: {}
-      internal: {}
+      internal:
+        ipv4_address: 10.5.0.102
 
   dockergen:
     image: nginxproxy/docker-gen:0.9.0
@@ -162,7 +166,7 @@ services:
       - internal
 
   cert-helper:
-    build: cert-helper
+    build: ${AWS_SANDBOX_DIR-.}/cert-helper
     volumes:
       - "mitmproxy:/mitmproxy:ro"
       - "caddy-data:/caddy:ro"
