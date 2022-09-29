@@ -61,12 +61,16 @@ services:
       internal: {}
 
   dockergen:
-    image: nginxproxy/docker-gen:0.8.4
+    image: nginxproxy/docker-gen:0.9.0
     command: -watch /etc/docker-gen/templates/caddy.tmpl /etc/caddy/Caddyfile
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./caddy/Caddyfile.tmpl:/etc/docker-gen/templates/caddy.tmpl
+      - ${AWS_SANDBOX_DIR-.}/caddy/Caddyfile.tmpl:/etc/docker-gen/templates/caddy.tmpl
       - caddy-conf:/etc/caddy
+    labels:
+      - "virtual.allow_http"
+    networks:
+      - internal
 
   dns-internal:
     image: coredns/coredns:1.7.0
