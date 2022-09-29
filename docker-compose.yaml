@@ -18,6 +18,29 @@ services:
       interval: 5s
     networks:
       internal: {}
+      default: {}
+
+  proxy-external:
+    image: alpine/socat
+    command:
+      - tcp-listen:8888,fork,reuseaddr
+      - tcp-connect:proxy:8888
+    ports:
+      - "8888:8888"
+    networks:
+      - internal
+      - default
+
+  proxy-external-ui:
+    image: alpine/socat
+    command:
+      - tcp-listen:8082,fork,reuseaddr
+      - tcp-connect:proxy:8082
+    ports:
+      - "8082:8082"
+    networks:
+      - internal
+      - default
 
   proxy:
     image: mitmproxy/mitmproxy:7.0.4
@@ -33,13 +56,9 @@ services:
       - "8082"
     dns:
       - 10.5.0.100
-    ports:
-      - "8888:8888"
-      - "8082:8082"
     volumes:
       - "mitmproxy:/home/mitmproxy/.mitmproxy/"
     networks:
-      default: {}
       internal:
         ipv4_address: 10.5.0.101
 
