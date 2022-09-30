@@ -129,7 +129,6 @@ services:
   dns:
     container_name: aws-sandbox-dns
     image: coredns/coredns:1.7.0
-    restart: on-failure
     volumes:
       - coredns-conf:/config/
     command:
@@ -137,6 +136,9 @@ services:
       - /config/Corefile
     ports:
       - "127.0.0.1:5300:53/udp"
+    depends_on:
+      dockergen-dns:
+        condition: service_healthy
     networks:
       internal:
         ipv4_address: 10.5.0.100
@@ -158,6 +160,9 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ${AWS_SANDBOX_DIR-.}/dns/Corefile.tmpl:/etc/docker-gen/templates/Corefile.tmpl
       - coredns-conf:/config/
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /config/Corefile ]"]
+      interval: 5s
     networks:
       - internal
 
