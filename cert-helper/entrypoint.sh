@@ -12,3 +12,6 @@ rm -rf /tmp/certs/*
 cp -L /etc/ssl/certs/* /tmp/certs/
 
 ln -sf /tmp/certs/ca-certificates.crt /tmp/certs/ca-bundle.crt
+
+# sleep a bit to make compose happy
+sleep 30
