@@ -145,11 +145,18 @@ services:
       default: {}
 
   dns-external:
+    container_name: aws-sandbox-dns-external
     image: coredns/coredns:1.7.0
     volumes:
-      - ${AWS_SANDBOX_DIR-.}/dns/Corefile.external:/Corefile
+      - coredns-conf-external:/config/
+    command:
+      - -conf
+      - /config/Corefile
     ports:
       - "127.0.0.1:53:53/udp"
+    depends_on:
+      dockergen-dns-external:
+        condition: service_healthy
     networks:
       default: { }
 
@@ -160,6 +167,19 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ${AWS_SANDBOX_DIR-.}/dns/Corefile.tmpl:/etc/docker-gen/templates/Corefile.tmpl
       - coredns-conf:/config/
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /config/Corefile ]"]
+      interval: 5s
+    networks:
+      - internal
+
+  dockergen-dns-external:
+    image: nginxproxy/docker-gen:0.9.0
+    command: -notify-sighup aws-sandbox-dns-external -watch /etc/docker-gen/templates/Corefile.tmpl /config/Corefile
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ${AWS_SANDBOX_DIR-.}/dns/Corefile.external.tmpl:/etc/docker-gen/templates/Corefile.tmpl
+      - coredns-conf-external:/config/
     healthcheck:
       test: ["CMD-SHELL", "[ -f /config/Corefile ]"]
       interval: 5s
@@ -187,3 +207,4 @@ volumes:
   caddy-data:
   db-data:
   coredns-conf:
+  coredns-conf-external:
