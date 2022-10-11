@@ -192,6 +192,9 @@ services:
       - "mitmproxy:/mitmproxy:ro"
       - "caddy-data:/caddy:ro"
       - "certificates:/tmp/certs"
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /tmp/certs/caddy.pem ]"]
+      interval: 5s
 
 networks:
   internal:
