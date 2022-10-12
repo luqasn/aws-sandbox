@@ -3,19 +3,18 @@
   reload
 
   template IN A rds.amazonaws.com {
-      answer "{{`{{ .Name }}`}} 60 IN A 10.5.0.103"
+      answer "{{`{{ .Name }}`}} 60 IN A 127.0.0.1"
   }
 
   {{ $hosts := groupByLabel $ "virtual.host" }}
   {{ range $h, $containers := $hosts }}
     {{ range $t, $host := splitList " " $h }}
   template IN A {{ (regexReplaceAll ":.*" ($host | trimPrefix "https://" | trimPrefix "http://" | trimPrefix "*.") "") }} {
-      answer "{{`{{ .Name }}`}} 60 IN A 10.5.0.102"
+      answer "{{`{{ .Name }}`}} 60 IN A 127.0.0.1"
   }
     {{ end }}
   {{ end }}
 
-  import /extra/*
-
-  forward . 127.0.0.11
+  forward . 1.1.1.1
 }
+

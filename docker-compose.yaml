@@ -66,7 +66,7 @@ services:
         ipv4_address: 10.5.0.101
 
   api-gateway:
-    image: caddy:2.4.6
+    image: caddy:2.6.1
     command: caddy run --watch --config /etc/caddy/Caddyfile
     dns:
       - 10.5.0.100
@@ -129,7 +129,6 @@ services:
   dns:
     container_name: aws-sandbox-dns
     image: coredns/coredns:1.7.0
-    restart: on-failure
     volumes:
       - coredns-conf:/config/
     command:
@@ -137,17 +136,27 @@ services:
       - /config/Corefile
     ports:
       - "127.0.0.1:5300:53/udp"
+    depends_on:
+      dockergen-dns:
+        condition: service_healthy
     networks:
       internal:
         ipv4_address: 10.5.0.100
       default: {}
 
   dns-external:
+    container_name: aws-sandbox-dns-external
     image: coredns/coredns:1.7.0
     volumes:
-      - ${AWS_SANDBOX_DIR-.}/dns/Corefile.external:/Corefile
+      - coredns-conf-external:/config/
+    command:
+      - -conf
+      - /config/Corefile
     ports:
       - "127.0.0.1:53:53/udp"
+    depends_on:
+      dockergen-dns-external:
+        condition: service_healthy
     networks:
       default: { }
 
@@ -158,6 +167,22 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ${AWS_SANDBOX_DIR-.}/dns/Corefile.tmpl:/etc/docker-gen/templates/Corefile.tmpl
       - coredns-conf:/config/
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /config/Corefile ]"]
+      interval: 5s
+    networks:
+      - internal
+
+  dockergen-dns-external:
+    image: nginxproxy/docker-gen:0.9.0
+    command: -notify-sighup aws-sandbox-dns-external -watch /etc/docker-gen/templates/Corefile.tmpl /config/Corefile
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ${AWS_SANDBOX_DIR-.}/dns/Corefile.external.tmpl:/etc/docker-gen/templates/Corefile.tmpl
+      - coredns-conf-external:/config/
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /config/Corefile ]"]
+      interval: 5s
     networks:
       - internal
 
@@ -167,6 +192,9 @@ services:
       - "mitmproxy:/mitmproxy:ro"
       - "caddy-data:/caddy:ro"
       - "certificates:/tmp/certs"
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /tmp/certs/caddy.pem ]"]
+      interval: 5s
 
 networks:
   internal:
@@ -182,3 +210,4 @@ volumes:
   caddy-data:
   db-data:
   coredns-conf:
+  coredns-conf-external:

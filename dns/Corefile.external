@@ -1,9 +1,0 @@
-. {
-  errors
-  template IN A test {
-      answer "{{ .Name }} 60 IN A 127.0.0.1"
-  }
-
-  forward . 127.0.0.11
-}
-
