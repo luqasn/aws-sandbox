@@ -1,7 +1,12 @@
 #!/bin/bash
 set -eo pipefail
-echo "Waiting for 5 seconds for certificates to be generated"
-sleep 5
+echo "Waiting for certificates to be generated"
+while [ ! -f /mitmproxy/mitmproxy-ca-cert.pem ] || [ ! -f /caddy/pki/authorities/local/root.crt ]
+do
+  sleep 2
+done
+
+echo "Certificates found, generating..."
 
 cp "/mitmproxy/mitmproxy-ca-cert.pem" /usr/local/share/ca-certificates/mitmproxy.crt
 cp "/caddy/pki/authorities/local/root.crt" /usr/local/share/ca-certificates/caddy.crt
