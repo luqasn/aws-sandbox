@@ -2,6 +2,9 @@
   errors
   reload
 
+  # don't hijack elb domains so they continue to work normally
+  forward elb.amazonaws.com 1.1.1.1
+
   template IN A rds.amazonaws.com {
       answer "{{`{{ .Name }}`}} 60 IN A 127.0.0.1"
   }
