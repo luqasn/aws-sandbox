@@ -22,6 +22,8 @@ rds.amazonaws.com {
     {{ end }}
   {{ end }}
 
+  import /extra/*
+
   forward . 1.1.1.1
 }
 
