@@ -154,6 +154,7 @@ services:
       - /config/Corefile
     ports:
       - "127.0.0.1:53:53/udp"
+      - "127.0.0.1:53:53/tcp"
     depends_on:
       dockergen-dns-external:
         condition: service_healthy
