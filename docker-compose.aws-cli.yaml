@@ -10,6 +10,6 @@ services:
       - internal
       - default
     dns:
-      - 10.5.0.100
+      - 10.10.0.100
     volumes:
       - "certificates:/etc/ssl/certs/:ro"
