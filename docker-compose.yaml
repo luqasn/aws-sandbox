@@ -77,7 +77,7 @@ services:
       - caddy-conf:/etc/caddy:ro
       - caddy-data:/data/caddy
     labels:
-      - "docker-gen.target"
+      docker-gen.target:
     networks:
       default: {}
       internal:
@@ -91,7 +91,7 @@ services:
       - ${AWS_SANDBOX_DIR-.}/caddy/Caddyfile.tmpl:/etc/docker-gen/templates/caddy.tmpl
       - caddy-conf:/etc/caddy
     labels:
-      - "virtual.allow_http"
+      virtual.allow_http:
     networks:
       - internal
 
